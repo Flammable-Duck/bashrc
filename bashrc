@@ -78,11 +78,8 @@ aliases() {
 sysbkp() {
     if [[ -e $1 ]]; then
         echo "Syncing ${1} with system"
-        backup_system_to_external_drive() {
-            rsync -av --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*",\
-                "/mnt/*","/media/*","/lost+found"} / /path/to/external/drive
-            }
-
+        rsync -av --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*",\
+            "/mnt/*","/media/*","/lost+found"} / ${1}
         else
             echo "media does not exist"
     fi
