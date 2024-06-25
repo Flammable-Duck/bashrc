@@ -16,8 +16,6 @@ shopt -s histappend
 
 eval "$(zoxide init bash)"
 eval "$(starship init bash)"
-# eval "$(beet completion)" # too slow
-# eval "$(cat ~/.config/bash_stuff/beet_completion)"
 eval "$(direnv hook bash)"
 eval "$(rbenv init - bash)"
 
@@ -32,11 +30,10 @@ alias cls='clear'
 alias clls='clear; ls'
 alias zj='zellij'
 alias feh='feh -B "#191724"'
-
-alias vpn='sudo openvpn ~/.config/openvpn/client.conf'
 alias nightlight='redshift -O 3250'
 alias daylight='redshift -x'
 alias adb='echo "run me as root dumbass";alias adb="adb" #'
+alias pia='sudo bash -c "source /home/duck/Desktop/manual-connections/ENV && /home/duck/Desktop/manual-connections/run_setup.sh"'
 
 
 # Functions
@@ -57,22 +54,34 @@ xs() {
 
 # history fuzzy finder
 hs() {
-    $(history | fzf | cut -c8-)
+    cmd=$(history | fzf | cut -c8-)
+    echo ${cmd}
+    history -s ${cmd}
+    eval ${cmd}
 }
 
 # List aliases
 aliases() {
     # I LOVE SED I LOVE WRITING REGULAR EXPRESSIONS THAT I WILL NEVER BE ABLE
     # TO UNDERSTAND ONCE IM DONE WRITING THEM
+    #
+    # ok its been 2 years, yeah i cant understand shit and i broke it at some
+    # point help
+
+    COL=";" # delimiter for col
+
     sed -n \
-        -e "s|^alias \(.*\)='\(.*\)'|\1 -> \2|p" \
+        -e "s|^alias \(.*\)='\(.*\)'|\1${COL}\2|p" \
         -e "/^# .*/ { # search for comments
             N # append a line
-            s|# \(.*\)\n\(.*\)() {|\2() -> \1|p
+            s|# \(.*\)\(.*\)() {|\2()${COL}\1|p
             }
             " \
-                ${BASH_SOURCE}
-            }
+        -e  "s|\n||g"\
+            ${BASH_SOURCE} \
+            | sed -e "s/!/\\(\\)/g" \
+            | column -tl 2 -s "${COL}"
+}
 
 # sync filesystem with external drive
 sysbkp() {
@@ -85,11 +94,21 @@ sysbkp() {
     fi
 }
 
-# Unzip an archive into a correspondingly named directory
+# extract an archive into a correspondingly named directory
 unziptodir() {
     # Extract the zip file into a directory named after the original archive
     unzip -q "$1" -d "${1%.zip}"
-    mv $1 "${1%.zip}"
+    mv "$1" "${1%.zip}"
+}
+
+
+# extract an archive into a correspondingly named directory
+tarxtodir() {
+    # Extract the zip file into a directory named after the original archive
+    DIR=${1%.tar*}
+    mkdir ${DIR}
+    tar xf "$1" --directory="${DIR}"
+    mv $1 "${DIR}"/
 }
 
 # BEGIN_KITTY_SHELL_INTEGRATION
