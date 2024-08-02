@@ -1,114 +1,156 @@
-# .bashrc
+# duck's .bashrc
 
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
-eval $(cat /home/duck/.profile)
+# eval $(cat /home/duck/.profile)
+source /home/duck/.profile
 
 # History
-# =======
-export HISTFILESIZE=50000
-export HISTSIZE=20000
+export HISTFILESIZE=infinite
+export HISTSIZE=1000000
+export PROMPT_COMMAND="history -a"
 shopt -s histappend
 
 # Plugin Setup
-# ============
-
 eval "$(zoxide init bash)"
 eval "$(starship init bash)"
 eval "$(direnv hook bash)"
 eval "$(rbenv init - bash)"
 
-# Aliases
-# =======
+### Aliases
+alias ls="exa --icons --group-directories-first"
+alias la="ls -a"
+alias ll="ls -al"
+alias tree="ls --tree"
+alias cls="clear"
+alias clls="clear; ls"
+alias less="less -r"
+alias feh="feh -B '#191724'"
+alias brc="nvim ~/.bashrc && source ~/.bashrc"
+alias uztd="unziptodir"
+alias txtd="tarxtodir"
+alias nightlight="redshift -O 1000K"
+alias daylight="redshift -x"
+alias adb="echo 'run me as root dumbass';alias adb='adb' #"
+alias pia="sudo bash -c 'source /home/duck/Desktop/manual-connections/ENV && /home/duck/Desktop/manual-connections/run_setup.sh'"
 
-alias ls='exa --icons --group-directories-first'
-alias la='ls -a'
-alias ll='ls -al'
-alias tree='ls --tree'
-alias cls='clear'
-alias clls='clear; ls'
-alias zj='zellij'
-alias feh='feh -B "#191724"'
-alias nightlight='redshift -O 3250'
-alias daylight='redshift -x'
-alias adb='echo "run me as root dumbass";alias adb="adb" #'
-alias pia='sudo bash -c "source /home/duck/Desktop/manual-connections/ENV && /home/duck/Desktop/manual-connections/run_setup.sh"'
 
+### Functions
 
-# Functions
-# =========
+spt() {
+## Start spotify tui with spotifyd
+    if [[ -z $(pidof "spotifyd") ]]; then
+        echo "spotifyd not running, starting now."
+        passwd=$(pass spotify.com/leohagerstrand+spotify@protonmail.com)
+        if [[ -z ${passwd} ]]; then
+            echo "failed to retrive spotify password."
+            return 0
+        fi
+        spotifyd -b pulseaudio --password=${passwd} && spotify-tui
+    else
+        spotify-tui
+    fi
+    return 0
+}
 
-# Get IP adress
+vpn() {
+## Connect to PIA
+    sudo bash -c 'source /home/duck/Desktop/manual-connections/ENV \
+        && /home/duck/Desktop/manual-connections/run_setup.sh'
+}
+
 ipwtf() {
+## Get IP adress
     curl -s https://wtfismyip.com/json | jq
 }
 
-# xbps-install fuzzy finder
 xs() {
+## xbps-install fuzzy finder
     xpkg -a |
         fzf -m --preview 'xq {1}' \
         --preview-window=right:66%:wrap |
         xargs -ro xi
     }
 
-# history fuzzy finder
 hs() {
+## history fuzzy finder
     cmd=$(history | fzf | cut -c8-)
     echo ${cmd}
     history -s ${cmd}
     eval ${cmd}
 }
 
-# List aliases
-aliases() {
-    # I LOVE SED I LOVE WRITING REGULAR EXPRESSIONS THAT I WILL NEVER BE ABLE
-    # TO UNDERSTAND ONCE IM DONE WRITING THEM
-    #
-    # ok its been 2 years, yeah i cant understand shit and i broke it at some
-    # point help
-
-    COL=";" # delimiter for col
-
-    sed -n \
-        -e "s|^alias \(.*\)='\(.*\)'|\1${COL}\2|p" \
-        -e "/^# .*/ { # search for comments
-            N # append a line
-            s|# \(.*\)\(.*\)() {|\2()${COL}\1|p
-            }
-            " \
-        -e  "s|\n||g"\
-            ${BASH_SOURCE} \
-            | sed -e "s/!/\\(\\)/g" \
-            | column -tl 2 -s "${COL}"
+web_docs() {
+## HTML, CSS, JS, and SVG documentation
+    fd . ~/Documents/web_docs/ --extension html --extension md\
+        | fzf -m \
+        | xargs -I {}\
+        firefox --profile /home/duck/.mozilla/firefox/1rge8lh6.docs {} &!
+    
 }
 
-# sync filesystem with external drive
-sysbkp() {
+aliases() {
+## List aliases
+    reset=$(color -c reset -m "")
+    dim=$(color -i -c dim -m "")
+    f_style=$(color -b -c cyan -m "")
+    a_style=$f_style
+    m_style="$(color -b -c green -m "")"
+    awk '
+    /\w\(\) \{/ {
+        split($0, a, "#")
+        {print "'$f_style' " $1 "'$reset$dim'"a[2]"'$reset'"}
+        {getline}
+        sub("[#]*[ ]*", "")
+        {print " | " $0}
+    }
+    /^alias / {
+        sub("alias ", "")
+        gsub("\"", "")
+        split($0, a, "=")
+        {print "'$a_style' "a[1] "'$reset'" " -> " a[2]}
+    }
+    /^###/ {
+        sub("[#]*[ ]*", "")
+        {print "'$m_style'" $0 "'$reset'"}
+    }
+    ' ~/.bashrc
+}
+
+sysbkp() { # $path/to/drive
+## Sync $HOME with external drive
     if [[ -e $1 ]]; then
         echo "Syncing ${1} with system"
-        rsync -av --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*",\
-            "/mnt/*","/media/*","/lost+found"} / ${1}
+        rsync -a --delete $HOME ${1}
+        echo "Last synced" $(date) > $1/backup_info
         else
             echo "media does not exist"
     fi
 }
 
-# extract an archive into a correspondingly named directory
-unziptodir() {
-    # Extract the zip file into a directory named after the original archive
-    unzip -q "$1" -d "${1%.zip}"
-    mv "$1" "${1%.zip}"
+unziptodir() { # $archive.zip
+## extract an archive into a correspondingly named directory
+    if [[ "$1" != *.zip ]]; then
+        echo "not a zip archive."
+        return 1
+    fi
+    unzip -q "$1" -d "${1%.zip}" \
+        && rm "$1"
+    # mv "$1" "${1%.zip}"
 }
 
-
-# extract an archive into a correspondingly named directory
-tarxtodir() {
-    # Extract the zip file into a directory named after the original archive
+tarxtodir() { # $archive.tar.gz
+## extract an archive into a correspondingly named directory
+    if [[ "$1" != *.tar.gz ]]; then
+        echo "not a tar archive."
+        return 1
+    fi
     DIR=${1%.tar*}
     mkdir ${DIR}
-    tar xf "$1" --directory="${DIR}"
-    mv $1 "${DIR}"/
+    tar xf "$1" --directory="${DIR}" \
+        && rm "$1"
+    # mv "$1" "${DIR}"/
 }
 
 # BEGIN_KITTY_SHELL_INTEGRATION
