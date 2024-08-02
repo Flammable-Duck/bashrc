@@ -33,8 +33,6 @@ alias txtd="tarxtodir"
 alias nightlight="redshift -O 1000K"
 alias daylight="redshift -x"
 alias adb="echo 'run me as root dumbass';alias adb='adb' #"
-alias pia="sudo bash -c 'source /home/duck/Desktop/manual-connections/ENV && /home/duck/Desktop/manual-connections/run_setup.sh'"
-
 
 ### Functions
 
